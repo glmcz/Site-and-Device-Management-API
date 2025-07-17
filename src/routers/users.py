@@ -123,12 +123,15 @@ async def delete_device(
 @router.get("/devices/{device_id}/metrics/latest")
 async def get_latest_metric(device_id: uuid.UUID, metric_type: str, user: UserClaims = Depends(decode_jwt_token),
                             db: AsyncSession = Depends(get_db)):
+    if user.access_level != "technical":
+        return status.HTTP_401_UNAUTHORIZED
+
     result = await db.execute(
         select(DeviceMetrics).where(
-            DeviceMetrics.device_id == uuid.UUID(device_id),
+            DeviceMetrics.device_id == device_id,
             func.lower(DeviceMetrics.metric_type) == metric_type.lower(),
             DeviceMetrics.device_id.in_(
-                select(Devices.id).where(Devices.site_id.in_(select(Sites.id).where(Sites.user_id == uuid.UUID(ser.id))))
+                select(Devices.id).where(Devices.site_id.in_(select(Sites.id).where(Sites.user_id == uuid.UUID(user.id))))
             )
         ).order_by(DeviceMetrics.time.desc()).limit(1)
     )
@@ -136,7 +139,7 @@ async def get_latest_metric(device_id: uuid.UUID, metric_type: str, user: UserCl
     if not metric:
         raise status.HTTP_400_BAD_REQUEST
 
-    unit = METRIC_UNITS(metric_type)
+    unit = METRIC_UNITS[metric_type.upper()].value
     return MetricResponse(time=metric.time,
                           metric_type=metric.metric_type,
                           value=metric.value,

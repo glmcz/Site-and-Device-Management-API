@@ -10,7 +10,7 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.database import get_db
 from src.main import app
-from src.models import Sites, Devices
+from src.models import Sites, Devices, DeviceMetrics, METRIC_UNITS
 from src.dependencies import UserClaims, decode_jwt_token
 
 
@@ -144,10 +144,8 @@ async def test_update_device_success(override_get_db):
         override_get_db.refresh.assert_called_once_with(existing_device)
 
 
-
 @pytest.mark.asyncio
 async def test_delete_device_technical(override_get_db, mock_db_session):
-    # Mock the site lookup to return a site (so it exists)
     existing_device = Devices(
         id=device_id,
         name="Old Device Name",
@@ -162,3 +160,33 @@ async def test_delete_device_technical(override_get_db, mock_db_session):
 
         assert response.status_code == 200, f"Response: {response.text}"
         mock_db_session.commit.assert_called_once()
+
+
+# test R3 metrics
+
+@pytest.mark.asyncio
+async def test_metric_last_value(override_get_db, mock_db_session):
+    existing_metrics = DeviceMetrics(
+        time=datetime.now(),
+        device_id = device_id,
+        metric_type = str(METRIC_UNITS.CURRENT),
+        value = 47.47
+    )
+    override_get_db.execute.return_value = Mock()
+
+    # scalar needs to be sync !!!!!!!!!!!!!!
+    mock_scalars = Mock()
+    mock_scalars.first.return_value = existing_metrics
+
+    mock_result = Mock()
+    mock_result.scalars = Mock(return_value=mock_scalars)
+
+    # Only the execute method should be async
+    mock_db_session.execute = AsyncMock(return_value=mock_result)
+
+
+    app.dependency_overrides[decode_jwt_token] = override_decode_jwt_token_technical
+    payload = { "metric_type": "current"}
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as async_client:
+        response = await async_client.get(f"/devices/{device_id}/metrics/latest", params=payload)
+        assert response.status_code == 200

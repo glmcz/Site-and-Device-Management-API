@@ -10,10 +10,10 @@ import uuid
 Base = declarative_base()
 
 class METRIC_UNITS(Enum):
-    POWER_OUTPUT = "W",
-    VOLTAGE = "V",
-    CURRENT = "A",
-    CHARGE_LEVEL = "%",
+    POWER_OUTPUT = "W"
+    VOLTAGE = "V"
+    CURRENT = "A"
+    CHARGE_LEVEL = "%"
     TEMPERATURE = "C"
 
 class DeviceType(Enum):
