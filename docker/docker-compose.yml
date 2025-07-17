@@ -1,0 +1,50 @@
+version: "2"
+services:
+  timescaledb:
+    build:
+      context: .
+      dockerfile: timescale.Dockerfile
+    container_name: timescaledb_dev
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+#    volumes:
+#      # Persist data
+#      - timescaledb_data:/var/lib/postgresql/data
+    command:
+      - "postgres"
+      - "-c"
+      - "config_file=/etc/postgresql/postgresql.conf"
+    environment:
+      POSTGRES_USER: szn
+      POSTGRES_PASSWORD: szn
+      POSTGRES_DB: stats
+      POSTGRES_HOST_AUTH_METHOD: md5
+      POSTGRES_INITDB_ARGS: "--auth-host=md5"
+      # Your existing config
+      POSTGRES_CONF_shared_preload_libraries: "timescaledb,pg_stat_statements"
+      POSTGRES_CONF_pg_stat_statements.track: "all"
+      POSTGRES_CONF_listen_addresses: "*"
+
+  # docker-compose up -d grafana
+  grafana:
+    image: grafana/grafana-enterprise:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+
+
+volumes:
+  postgres-data:
+  grafana-data:
+  timescaledb_data:
+#networks:
+#  default:
+#    driver: bridge

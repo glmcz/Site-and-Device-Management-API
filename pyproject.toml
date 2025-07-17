@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "energy-management-system"
+version = "0.1.0"
+description = "Energy Management System API"
+authors = [
+    {name = "Your Name", email = "your.email@example.com"},
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi[standard]>=0.116.0",
+    "uvicorn>=0.35.0",
+    "pyjwt>=2.8.0",
+    "cryptography>=41.0.7",
+    "sqlalchemy>=2.0.41",
+    "python-multipart>=0.0.6",
+    "loguru>=0.7.3",
+    "asyncmock>=0.4.2",
+    "asyncpg>=0.30.0",
+    #    "python-jose[cryptography]>=3.5.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.4.1",
+    "pytest-asyncio>=0.21.0",
+    "httpx>=0.25.0",
+    "pytest-mock>=3.14.0",
+    "greenlet>=3.2.3",
+    "pytest-asyncio"
+]
+
+#[tool.pytest.ini_options]
+#testpaths = ["test"]
+#python_files = "test_*.py"
+#python_classes = "Test*"
+#python_functions = "test_*"
+#pythonpath = ["."]
+
+[tool.setuptools]
+include-package-data = true
+zip-safe = false
+
+[tool.setuptools.dynamic.version]
+attr = "jwt.__version__"
+
+[tool.setuptools.package-data]
+"*" = [
+    "py.typed",
+]
+
+[tool.setuptools.packages.find]
+exclude = [
+    "tests",
+    "tests.*",
+]
+namespaces = false
