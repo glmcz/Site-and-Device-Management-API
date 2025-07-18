@@ -7,9 +7,9 @@ A FastAPI-based API for managing sites, devices, metrics, and subscriptions, usi
 1. Download uv and make venv
     ```bash
     curl -Ls https://astral.sh/uv/install.sh | bash
-    uv init
     source $HOME/.local/bin/env
     uv sync
+    uv pip install pytest-asyncio
     ```
 2. Start TimescaleDB and app: `docker-compose up`
 3. Run tests: `pytest tests/test_api.py -v`
