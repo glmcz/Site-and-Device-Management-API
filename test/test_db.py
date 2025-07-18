@@ -10,7 +10,7 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.database import get_db
 from src.main import app
-from src.models import Sites, Devices, DeviceMetrics, METRIC_UNITS
+from src.models import Sites, Devices, DeviceMetrics, METRIC_TYPE_TO_UNIT
 from src.dependencies import UserClaims, decode_jwt_token
 
 
@@ -169,7 +169,7 @@ async def test_metric_last_value(override_get_db, mock_db_session):
     existing_metrics = DeviceMetrics(
         time=datetime.now(),
         device_id = device_id,
-        metric_type = str(METRIC_UNITS.CURRENT),
+        metric_type = str(METRIC_TYPE_TO_UNIT.CURRENT),
         value = 47.47
     )
     override_get_db.execute.return_value = Mock()

@@ -1,6 +1,5 @@
 from enum import Enum
 from sqlalchemy import Column, String, UUID, Float, DateTime, ForeignKey
-from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy.ext.declarative import declarative_base
 from pydantic import BaseModel
 from datetime import datetime
@@ -9,7 +8,7 @@ import uuid
 # DB models
 Base = declarative_base()
 
-class METRIC_UNITS(Enum):
+class METRIC_TYPE_TO_UNIT(Enum):
     POWER_OUTPUT = "W"
     VOLTAGE = "V"
     CURRENT = "A"
@@ -48,6 +47,13 @@ class DeviceMetrics(Base):
     device_id = Column(UUID(as_uuid=True), primary_key=True)
     metric_type = Column(String(100), primary_key=True)
     value = Column(Float)
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+    id = Column(UUID, primary_key=True)
+    device_id = Column(UUID, ForeignKey("devices.id"), nullable=False)
+    metric_type = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 # Response models
@@ -97,3 +103,26 @@ class SubscriptionResponse(BaseModel):
 class TimeSeriesResponse(BaseModel):
     time: datetime
     value: float
+
+
+# Pydantic models for request/response
+class CreateSubscriptionRequest(BaseModel):
+    device_ids: list[uuid.UUID]
+    metric_types: list[str]
+
+
+class SubscriptionResponse(BaseModel):
+    id: uuid.UUID
+    device_id: uuid.UUID
+    metric_type: str
+    created_at: datetime
+
+
+
+class TimeSeriesResponse(BaseModel):
+    device_id: uuid.UUID
+    metric_type: str
+    data: list
+    start_time: datetime
+    end_time: datetime
+    count: int

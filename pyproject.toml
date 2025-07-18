@@ -21,7 +21,6 @@ dependencies = [
     "loguru>=0.7.3",
     "asyncmock>=0.4.2",
     "asyncpg>=0.30.0",
-    #    "python-jose[cryptography]>=3.5.0"
 ]
 
 [project.optional-dependencies]
@@ -33,13 +32,6 @@ dev = [
     "greenlet>=3.2.3",
     "pytest-asyncio"
 ]
-
-#[tool.pytest.ini_options]
-#testpaths = ["test"]
-#python_files = "test_*.py"
-#python_classes = "Test*"
-#python_functions = "test_*"
-#pythonpath = ["."]
 
 [tool.setuptools]
 include-package-data = true
