@@ -1,7 +1,6 @@
 from enum import Enum
 from sqlalchemy import Column, String, UUID, Float, DateTime, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from pydantic import BaseModel
 from datetime import datetime
 import uuid
 
@@ -56,73 +55,4 @@ class Subscription(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
-# Response models
-# Pydantic Models
-class UserClaims(BaseModel):
-    user_id: uuid.UUID
-    access_level: str
 
-class SiteResponse(BaseModel):
-    name: list[str]
-
-
-class CreateDevice(BaseModel):
-    name: str
-    site_id: uuid.UUID
-    type: str
-
-class DeviceRequest(BaseModel):
-    id: uuid.UUID
-    name: str
-    site_id: uuid.UUID
-    type: str
-
-
-class DeviceResponse(BaseModel):
-    id: uuid.UUID
-    name: str
-    site_id: uuid.UUID
-    type: str
-
-class MetricResponse(BaseModel):
-    time: datetime
-    metric_type: str
-    value: float
-    unit: str = "unknown"
-
-class SubscriptionCreate(BaseModel):
-    metric_types: list[str]
-    device_ids: list[uuid.UUID]
-
-class SubscriptionResponse(BaseModel):
-    id: uuid.UUID
-    user_id: uuid.UUID
-    metric_type: str
-    device_id: uuid.UUID
-
-class TimeSeriesResponse(BaseModel):
-    time: datetime
-    value: float
-
-
-# Pydantic models for request/response
-class CreateSubscriptionRequest(BaseModel):
-    device_ids: list[uuid.UUID]
-    metric_types: list[str]
-
-
-class SubscriptionResponse(BaseModel):
-    id: uuid.UUID
-    device_id: uuid.UUID
-    metric_type: str
-    created_at: datetime
-
-
-
-class TimeSeriesResponse(BaseModel):
-    device_id: uuid.UUID
-    metric_type: str
-    data: list
-    start_time: datetime
-    end_time: datetime
-    count: int

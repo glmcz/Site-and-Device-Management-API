@@ -57,12 +57,14 @@ async def test_site(override_get_db, mock_db_session):
     mock_db_session.execute = AsyncMock()
     mock_result = AsyncMock()
     mock_db_session.execute.return_value = mock_result
-    mock_result.first.return_value = [mock_site]
+    mock_result.first.return_value = mock_site
 
     app.dependency_overrides[decode_jwt_token] = override_decode_jwt_token
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as async_client:
         response = await async_client.get(f"/sites/{site_id}")
         assert response.status_code == 200
+        site = Sites(**response.json())
+        assert site.name == mock_site.name
 
 
 @pytest.mark.asyncio
@@ -72,7 +74,7 @@ async def test_list_sites(override_get_db, mock_db_session):
 
     # scalar needs to be sync !!!!!!!!!!!!!!
     mock_scalars = Mock()
-    mock_scalars.fetchall.return_value = [mock_site]
+    mock_scalars.all.return_value = [mock_site]
 
     mock_result = Mock()
     mock_result.scalars = Mock(return_value=mock_scalars)
@@ -84,6 +86,9 @@ async def test_list_sites(override_get_db, mock_db_session):
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as async_client:
         response = await async_client.get("/sites")
         assert response.status_code == 200
+        response_data = response.json()
+        sites = [Sites(**site_dict) for site_dict in response_data]
+        assert sites[0].name == mock_site.name
 
 
 @pytest.mark.asyncio
@@ -96,11 +101,12 @@ async def test_create_device_technical(override_get_db, mock_db_session):
     mock_db_session.scalars.return_value = mock_scalars_result
     app.dependency_overrides[decode_jwt_token] = override_decode_jwt_token_technical
 
-
     payload = {"name": "Test Device", "site_id": str(site_id), "type": "pv_panel"}
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as async_client:
         response = await async_client.post("/devices", json=payload)
         assert response.status_code == 200
+        value = response.json()
+        assert value["msg"] == "Device was created"
         mock_db_session.scalars.assert_called()
         mock_db_session.commit.assert_called_once()
 
@@ -117,7 +123,7 @@ async def test_update_device_success(override_get_db):
     # Mock the database responses
     override_get_db.get.return_value = existing_device
     payload = {
-        "id": str(site_id), # TODO remove from model
+        "id": str(site_id),
         "name": "Updated Device Name",
         "site_id": str(site_id),
         "type" : "pv_panel",
@@ -132,12 +138,8 @@ async def test_update_device_success(override_get_db):
         )
 
         assert response.status_code == 200
-        # response_data = response.json()
-        # assert response_data["message"] == "Device updated successfully"
-        # assert response_data["device"]["name"] == "Updated Device Name"
-        # assert response_data["device"]["site_id"] == str(site_id)
-        # assert response_data["device"]["type"] == "pv_panel"  # Unchanged
-
+        value = response.json()
+        assert value["msg"] == "Device was updated"
         # Verify database calls
         override_get_db.get.assert_called_once_with(Devices, device_id)
         override_get_db.commit.assert_called_once()
@@ -157,8 +159,9 @@ async def test_delete_device_technical(override_get_db, mock_db_session):
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as async_client:
         response = await async_client.delete(f"/devices/{device_id}")
-
-        assert response.status_code == 200, f"Response: {response.text}"
+        assert response.status_code == 200
+        value = response.json()
+        assert value["msg"] == "Device was deleted"
         mock_db_session.commit.assert_called_once()
 
 

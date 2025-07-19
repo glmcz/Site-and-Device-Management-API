@@ -1,7 +1,3 @@
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "energy-management-system"
 version = "0.1.0"
@@ -31,24 +27,36 @@ dev = [
     "httpx>=0.25.0",
     "pytest-mock>=3.14.0",
     "greenlet>=3.2.3",
-    "pytest-asyncio"
 ]
 
-[tool.setuptools]
-include-package-data = true
-zip-safe = false
-
-[tool.setuptools.dynamic.version]
-attr = "jwt.__version__"
-
-[tool.setuptools.package-data]
-"*" = [
-    "py.typed",
+# UV-specific configuration
+[tool.uv]
+dev-dependencies = [
+    "faker>=37.4.2",
+    "pytest>=8.4.1",
+    "pytest-asyncio>=0.21.0",
+    "httpx>=0.25.0",
+    "pytest-mock>=3.14.0",
+    "greenlet>=3.2.3",
 ]
 
-[tool.setuptools.packages.find]
-exclude = [
-    "tests",
-    "tests.*",
-]
-namespaces = false
+# UV workspace configuration (optional)
+[tool.uv.workspace]
+members = ["."]
+
+# UV sources (if you need specific package sources)
+[tool.uv.sources]
+# Example: local development packages
+# my-package = { path = "../my-package", editable = true }
+
+# Build system (simplified for uv)
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Hatch configuration (works well with uv)
+[tool.hatch.build.targets.wheel]
+packages = ["src/energy_management_system"]
+
+[tool.hatch.version]
+path = "src/energy_management_system/__init__.py"
