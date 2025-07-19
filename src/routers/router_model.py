@@ -49,6 +49,10 @@ class DeviceResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class MetricStatusCodeResponse(BaseModel):
+    status: int
+    msg: str
+
 class MetricResponse(BaseModel):
     time: datetime
     metric_type: str

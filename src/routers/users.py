@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status
 from fastapi.params import Query
 from sqlalchemy import select
@@ -13,15 +13,15 @@ from src.routers.router_model import DeviceRequest, SiteResponse, DeviceResponse
 router = APIRouter()
 
 
-@router.post("/users/")
-async def insert_user(
-    user: UserClaims = Depends(decode_jwt_token),
-    db: AsyncSession = Depends(get_db)
-):
-    db.add(user)
-    await db.commit()
-    await db.refresh(Users)
-    return status.HTTP_200_OK
+# @router.post("/users/")
+# async def insert_user(
+#     user: UserClaims = Depends(decode_jwt_token),
+#     db: AsyncSession = Depends(get_db)
+# ):
+#     db.add(user)
+#     await db.commit()
+#     await db.refresh(Users)
+#     return status.HTTP_200_OK
 
 #
 # @router.put("/users/{id}")
@@ -67,7 +67,7 @@ async def get_site(
     result = await db.execute(select(Sites).where(Sites.id == site_id, Sites.user_id == uuid.UUID(user.id)))
     site = await result.first()
     if not site:
-        return status.HTTP_404_NOT_FOUND
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"site with id: {site_id} was not found")
     return site
 
 
@@ -75,12 +75,12 @@ async def get_site(
 @router.post("/devices",)
 async def create_device(payload: DeviceRequest, user: UserClaims = Depends(decode_jwt_token), db: AsyncSession = Depends(get_db)):
     if user.access_level != "technical":
-        return status.HTTP_401_UNAUTHORIZED
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Don't have technical status")
 
     # first() has to be called after await...
     site = (await db.scalars(select(Sites).filter_by(id=payload.site_id))).first()
     if not site:
-        return status.HTTP_400_BAD_REQUEST, "site not found"
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="site not found")
     # Create device
     device = Devices(name=payload.name, site_id=payload.site_id, type=payload.type)
     db.add(device)
@@ -94,11 +94,11 @@ async def create_device(payload: DeviceRequest, user: UserClaims = Depends(decod
             response_model=DeviceResponse)
 async def update_device(device_id: uuid.UUID, payload: DeviceRequest, user: UserClaims = Depends(decode_jwt_token), db: AsyncSession = Depends(get_db)):
     if user.access_level != "technical":
-        return status.HTTP_401_UNAUTHORIZED
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Don't have technical status")
 
     device = await db.get(Devices, device_id)
     if not device:
-        return status.HTTP_404_NOT_FOUND # device not found
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="device not found")
 
     for key, value in payload.dict(exclude_unset=True).items():
         setattr(device, key, value)
@@ -117,11 +117,11 @@ async def delete_device(
         db: AsyncSession = Depends(get_db)
 ):
     if user.access_level != "technical":
-        return status.HTTP_401_UNAUTHORIZED
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Don't have technical status")
 
     device = await db.get(Devices, device_id)
     if not device:
-        return status.HTTP_404_NOT_FOUND
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="device was not found")
 
     await db.delete(device)
     await db.commit()
