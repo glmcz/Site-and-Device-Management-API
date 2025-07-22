@@ -6,10 +6,14 @@ import uvicorn
 from loguru import logger
 
 from .config import app_config
-from .routers.users import router
+from .routers.devices import devices_router
+from .routers.sites import sites_router
+from .routers.metrics import metrics_router
 app = FastAPI()
 
-app.include_router(router)
+app.include_router(sites_router)
+app.include_router(devices_router)
+app.include_router(metrics_router)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):

@@ -21,7 +21,7 @@ class SiteResponse(BaseModel):
 class DeviceRequest(BaseModel):
     id: uuid.UUID | None = None
     name: str
-    site_id: uuid.UUID
+    site_id: uuid.UUID | None = None
     type: str | None = None
 
 

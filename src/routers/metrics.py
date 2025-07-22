@@ -7,33 +7,26 @@ import uuid
 from datetime import datetime
 
 import faker
-from fastapi import Depends, status, HTTPException
+from fastapi import Depends, status, HTTPException, APIRouter
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.database import get_db
+from src.db.database import get_db, RepositoryContainer
 from src.dependencies import UserClaims, decode_jwt_token
 from src.models import DeviceMetrics, Devices, Sites, METRIC_TYPE_TO_UNIT, Subscription
 from src.routers.router_model import MetricResponse, CreateSubscriptionRequest, TimeSeriesResponse, MetricStatusCodeResponse
-from src.routers.users import router
 
 
-@router.get("/devices/{device_id}/metrics/latest")
+metrics_router = APIRouter()
+
+@metrics_router.get("/devices/{device_id}/metrics/latest",
+                    response_model=MetricResponse)
 async def get_latest_metric(device_id: uuid.UUID, metric_type: str, user: UserClaims = Depends(decode_jwt_token),
-                            db: AsyncSession = Depends(get_db)):
+                            db: RepositoryContainer = Depends(get_db)):
     if user.access_level != "technical":
         return status.HTTP_401_UNAUTHORIZED
 
-    result = await db.execute(
-        select(DeviceMetrics).where(
-            DeviceMetrics.device_id == device_id,
-            func.lower(DeviceMetrics.metric_type) == metric_type.lower(),
-            DeviceMetrics.device_id.in_(
-                select(Devices.id).where(Devices.site_id.in_(select(Sites.id).where(Sites.user_id == uuid.UUID(user.id))))
-            )
-        ).order_by(DeviceMetrics.time.desc()).limit(1)
-    )
-    metric = result.scalars().first()
+    metric = await db.metrics.get_metric_last_values(device_id, metric_type)
     if not metric:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"given metrics for device {device_id} was not found")
 
@@ -45,76 +38,47 @@ async def get_latest_metric(device_id: uuid.UUID, metric_type: str, user: UserCl
 
 
 # R4: Metric Subscription (Streaming)
-@router.post("/subscriptions",
-             response_model=MetricResponse)
+@metrics_router.post("/subscriptions",
+                   response_model=MetricResponse)
 async def create_subscriptions(
         request: CreateSubscriptionRequest,
         user: UserClaims = Depends(decode_jwt_token),
-        db: AsyncSession = Depends(get_db)
+        db: RepositoryContainer = Depends(get_db)
 ):
 
-    device_query = select(Devices).join(Sites).where(
-        Devices.id.in_(request.device_ids),
-        Sites.user_id == uuid.UUID(user.id)
-    )
-    result = await db.execute(device_query)
-    valid_devices = result.scalars().all()
+    valid_devices = await db.devices.check_exist_user_devices(user_id=uuid.UUID(user.id), device_ids=request.device_ids)
     valid_device_ids = {device.id for device in valid_devices}
 
     if len(valid_device_ids) != len(request.device_ids):
         invalid_device_ids = set(request.device_ids) - valid_device_ids
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Didn't find valid device_id: {list[invalid_device_ids]} for subscription")
 
+
     # Check for existing subscriptions to avoid duplicates
-    existing_query = select(Subscription).where(
-        Subscription.device_id.in_(request.device_ids),
-        Subscription.metric_type.in_(request.metric_types)
-    )
-    existing_result = await db.execute(existing_query)
-    existing_subscriptions = existing_result.scalars().all()
+    existing_subscriptions = await db.metrics.check_existing_subscription(device_ids=request.device_ids, metric_types=request.metric_types)
     existing_pairs = {(sub.device_id, sub.metric_type) for sub in existing_subscriptions}
 
     # Create only new subscriptions
     new_subscriptions = []
-    for device_id in request.device_ids:
-        for metric_type in request.metric_types:
-            if (device_id, metric_type) not in existing_pairs:
-                subscription = Subscription(
-                    id=uuid.uuid4(),
-                    device_id=device_id,
-                    metric_type=metric_type,
-                    created_at=datetime.utcnow()
-                )
-                new_subscriptions.append(subscription)
-                db.add(subscription)
 
     if not new_subscriptions:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Subscription already exist")
 
-    await db.commit()
-
-    # Refresh to get created_at values
-    for subscription in new_subscriptions:
-        await db.refresh(subscription)
-
+    await db.metrics.create_devices_subscriptions(device_ids=request.device_ids, metric_types=request.metric_types, existing_pairs=existing_pairs)
     return MetricStatusCodeResponse(status_code=status.HTTP_200_OK, details="Subscription was created")
 
 
 # # R5: Time-Series Endpoint
-@router.get("/subscriptions/{subscription_id}/time-series")
+@metrics_router.get("/subscriptions/{subscription_id}/time-series")
 async def get_time_series(
         subscription_id: uuid.UUID,
         start_time: datetime,
         end_time: datetime,
         user: UserClaims = Depends(decode_jwt_token),
-        db: AsyncSession = Depends(get_db)
+        db: RepositoryContainer = Depends(get_db)
 ):
-    result = await db.execute(
-        select(Subscription).where(
-            Subscription.id == subscription_id,
-                        Subscription.user_id == user.user_id)
-    )
-    subscription = result.scalars().first()
+
+    subscription = await db.metrics.check_existing_subscription_by_id(subscription_id=subscription_id)
     if not subscription:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subscription was not created so far. Do it first")
 

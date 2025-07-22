@@ -34,7 +34,7 @@ class Sites(Base):
 
 class Devices(Base):
     __tablename__ = "devices"
-    id = Column(UUID, primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4())
     name = Column(String(100), nullable=False)
     site_id = Column(UUID, ForeignKey("sites.id"), nullable=False)
     type = Column(String(100), nullable=False)
@@ -47,9 +47,10 @@ class DeviceMetrics(Base):
     metric_type = Column(String(100), primary_key=True)
     value = Column(Float)
 
+# getting automatically all new coming data
 class Subscription(Base):
     __tablename__ = "subscriptions"
-    id = Column(UUID, primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4())
     device_id = Column(UUID, ForeignKey("devices.id"), nullable=False)
     metric_type = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
